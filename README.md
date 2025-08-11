@@ -114,14 +114,23 @@ Make sure you have a **valid read token** from Hugging Face.
 ---
 
 ## 🖼 Example Demonstrations
-<img width="960" height="720" alt="placement_0001" src="https://github.com/user-attachments/assets/bf5f7385-06b3-4aac-adef-3e736e99747a" />
-<img width="960" height="720" alt="placement_0002" src="https://github.com/user-attachments/assets/cd2aca7e-7005-400a-8d67-4a993343b421" />
-<img width="960" height="720" alt="placement_0003" src="https://github.com/user-attachments/assets/b4074181-f95d-46f6-a0ad-c62875197fad" />
-<img width="960" height="720" alt="placement_0004" src="https://github.com/user-attachments/assets/5dd4a6c4-0f40-4f8d-b0e0-3af9c20a73cf" />
-<img width="960" height="720" alt="placement_0005" src="https://github.com/user-attachments/assets/0dcd514c-4dc3-4641-a1a1-91167dec73f7" />
-<img width="960" height="720" alt="placement_0006" src="https://github.com/user-attachments/assets/2b9e479f-3bff-494f-b352-e8f732b65906" />
-<img width="960" height="720" alt="placement_0007" src="https://github.com/user-attachments/assets/d859161b-aa1e-4ae7-a26e-98888e358223" />
-<img width="960" height="720" alt="placement_0008" src="https://github.com/user-attachments/assets/1c754691-cd99-418f-96fb-c781e1aa7c1a" />
-<img width="960" height="720" alt="placement_0009" src="https://github.com/user-attachments/assets/4c2f2b81-606a-4bc0-8b26-0b80941ddd93" />
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bf5f7385-06b3-4aac-adef-3e736e99747a" width="30%" />
+  <img src="https://github.com/user-attachments/assets/cd2aca7e-7005-400a-8d67-4a993343b421" width="30%" />
+  <img src="https://github.com/user-attachments/assets/b4074181-f95d-46f6-a0ad-c62875197fad" width="30%" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5dd4a6c4-0f40-4f8d-b0e0-3af9c20a73cf" width="30%" />
+  <img src="https://github.com/user-attachments/assets/0dcd514c-4dc3-4641-a1a1-91167dec73f7" width="30%" />
+  <img src="https://github.com/user-attachments/assets/2b9e479f-3bff-494f-b352-e8f732b65906" width="30%" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d859161b-aa1e-4ae7-a26e-98888e358223" width="30%" />
+  <img src="https://github.com/user-attachments/assets/1c754691-cd99-418f-96fb-c781e1aa7c1a" width="30%" />
+  <img src="https://github.com/user-attachments/assets/4c2f2b81-606a-4bc0-8b26-0b80941ddd93" width="30%" />
+</p>
 
 
