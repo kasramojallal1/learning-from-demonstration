@@ -1,12 +1,13 @@
 # main.py
 import os
+import random
 from datetime import datetime
 
 from lfd.logger import DemoLogger
 from envs.bin_env import BinPackingLfDEnv
 from utils.geometry import unique_rotations_3d
 
-SEED = 42
+SEED = random.randint(1, 10000)
 
 # --- Bigger boxes = fewer placements, easier choices ---
 PLACEMENTS_TARGET = 8              # how many demos to collect per run
