@@ -112,6 +112,8 @@ Make sure you have a **valid read token** from Hugging Face.
 4. **Deploy** – Use the fine-tuned model to generate packing paths for new boxes.
 
 ---
+
+## 🖼 Example Demonstrations
 <img width="960" height="720" alt="placement_0001" src="https://github.com/user-attachments/assets/bf5f7385-06b3-4aac-adef-3e736e99747a" />
 <img width="960" height="720" alt="placement_0002" src="https://github.com/user-attachments/assets/cd2aca7e-7005-400a-8d67-4a993343b421" />
 <img width="960" height="720" alt="placement_0003" src="https://github.com/user-attachments/assets/b4074181-f95d-46f6-a0ad-c62875197fad" />
