@@ -10,8 +10,8 @@ from utils.geometry import unique_rotations_3d
 SEED = random.randint(1, 10000)
 
 # --- Bigger boxes = fewer placements, easier choices ---
-PLACEMENTS_TARGET = 8              # how many demos to collect per run
-LARGE_BOX_RANGE_DEFAULT = (0.3, 0.6)  # per-axis fraction of bin size
+PLACEMENTS_TARGET = 10              # how many demos to collect per run
+LARGE_BOX_RANGE_DEFAULT = (0.3, 0.5)  # per-axis fraction of bin size
 
 
 def ensure_dir(p: str):
