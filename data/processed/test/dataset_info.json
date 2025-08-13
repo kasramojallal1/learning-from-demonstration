@@ -1,0 +1,24 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "user_pick": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "assistant_pick": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "user_path": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "assistant_path": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}
