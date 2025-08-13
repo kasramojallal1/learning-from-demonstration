@@ -91,7 +91,7 @@ Output will be saved in `data/processed/`.
 ### 4️⃣ Fine-Tune with LoRA / QLoRA
 Example for QLoRA fine-tuning:
 ```bash
-python training/train_lora.py     --model meta-llama/Llama-3.2-1B     --dataset_dir data/processed     --output_dir models/llama3.2-qlora
+python training/train_lora_gemma2_2b.py     --model meta-llama/Llama-3.2-1B     --dataset_dir data/processed     --output_dir models/llama3.2-qlora
 ```
 
 ---

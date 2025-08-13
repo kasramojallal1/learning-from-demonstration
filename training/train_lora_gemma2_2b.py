@@ -1,4 +1,4 @@
-# training/train_lora.py
+# training/train_lora_gemma2_2b.py
 # Fine-tune google/gemma-2-2b-it with LoRA on Mac (MPS) for bin-packing LfD.
 
 import os
@@ -20,8 +20,10 @@ from peft import LoraConfig, get_peft_model
 # Config
 # --------------------
 MODEL_NAME = "google/gemma-2-2b-it"
-DATA_DIR = "data/processed"           # produced by sft_prepare.py
-OUTPUT_DIR = "checkpoints/lfd-lora-gemma2-2b"
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(REPO_ROOT, "data", "processed"))
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR", os.path.join(REPO_ROOT, "checkpoints", "lfd-lora-gemma2-2b"))
 
 # LoRA
 LORA_R = 16
@@ -30,7 +32,7 @@ LORA_DROPOUT = 0.05
 LORA_TARGET = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 # Training
-MAX_LEN = int(os.environ.get("MAX_LEN", "384"))  # try 512 if fits; 320/256 if OOM
+MAX_LEN = int(os.environ.get("MAX_LEN", "384"))  # try 512 if it fits; 320/256 if OOM
 BATCH_SIZE = 1
 GRAD_ACCUM = 48
 LR = 2e-4
@@ -38,12 +40,10 @@ EPOCHS = 3
 MAX_GRAD_NORM = 1.0
 LOG_STEPS = 50
 SAVE_STEPS = 500
-EVAL_STRATEGY = "no"
 SEED = 42
 
-# MPS allocator hint: allow immediate reuse (helps fragmentation)
+# MPS allocator hints
 os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
-# Optional (usually harmless): let ops fall back to CPU if not implemented
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 
@@ -60,42 +60,30 @@ def build_text(row: Dict[str, str]) -> str:
 def main():
     set_seed(SEED)
 
-    # --------------------
     # Devices
-    # --------------------
     use_mps = torch.backends.mps.is_available()
-    mps = torch.device("mps") if use_mps else torch.device("cpu")
-    cpu = torch.device("cpu")
+    device = torch.device("mps") if use_mps else torch.device("cpu")
     print("✅ Using MPS device." if use_mps else "⚠️ MPS not available; using CPU.")
 
-    # --------------------
     # Tokenizer
-    # --------------------
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"
+    tok = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=True)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+    tok.padding_side = "right"
 
-    # --------------------
-    # Load base model on CPU in FP16 to avoid MPS warmup allocation
-    # --------------------
+    # Load base model on CPU (fp16) to avoid MPS warmup; then move to MPS
     print("🔧 Loading base model on CPU (fp16), then moving to MPS...")
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
-        torch_dtype=torch.float16,     # cut memory in half vs fp32
+        torch_dtype=torch.float16,   # params in fp16 to save memory
         low_cpu_mem_usage=True,
-        device_map=None,               # ensure load happens on CPU
+        device_map=None,             # load on CPU
     )
-    # Now move to MPS (or stay CPU)
-    model.to(mps if use_mps else cpu)
-
-    # Reduce runtime memory
+    model.to(device)
     model.config.use_cache = False
     model.gradient_checkpointing_enable()
 
-    # --------------------
     # Apply LoRA
-    # --------------------
     lora_cfg = LoraConfig(
         r=LORA_R,
         lora_alpha=LORA_ALPHA,
@@ -107,21 +95,22 @@ def main():
     model = get_peft_model(model, lora_cfg)
     model.print_trainable_parameters()
 
-    # --------------------
-    # Load dataset
-    # --------------------
-    ds = load_from_disk(DATA_DIR)  # DatasetDict with "train" and "test"
+    # Dataset
+    if not os.path.isdir(DATA_DIR):
+        raise FileNotFoundError(
+            f"Processed dataset not found at '{DATA_DIR}'. "
+            "Run: python training/sft_prepare.py --input data/demos/binpack_lfd.jsonl --out data/processed --train_ratio 0.9"
+        )
+    ds = load_from_disk(DATA_DIR)
     train_raw = ds["train"]
-    test_raw = ds.get("test", None)
+    test_raw = ds.get("test")
 
-    # --------------------
-    # Tokenization (batched)
-    # --------------------
-    def map_batch(batch: Dict[str, List[str]]) -> Dict[str, List[List[int]]]:
+    # Tokenization
+    def map_batch(batch: Dict[str, List[str]]):
         n = len(batch["user_pick"])
         rows = [{k: batch[k][i] for k in batch.keys()} for i in range(n)]
         texts = [build_text(r) for r in rows]
-        enc = tokenizer(
+        enc = tok(
             texts,
             max_length=MAX_LEN,
             padding="max_length",
@@ -133,19 +122,10 @@ def main():
 
     print("📝 Tokenizing train set...")
     train_ds = train_raw.map(map_batch, batched=True, remove_columns=train_raw.column_names)
+    test_ds = test_raw.map(map_batch, batched=True, remove_columns=test_raw.column_names) if test_raw else None
+    print("🔍 Sample keys:", train_ds[0].keys(), " | seq len:", len(train_ds[0]["input_ids"]))
 
-    if test_raw is not None:
-        print("📝 Tokenizing test set...")
-        test_ds = test_raw.map(map_batch, batched=True, remove_columns=test_raw.column_names)
-    else:
-        test_ds = None
-
-    print("🔍 Sample tokenized keys:", train_ds[0].keys())
-    print("🔍 input_ids len:", len(train_ds[0]["input_ids"]), " (should be MAX_LEN)")
-
-    # --------------------
-    # TrainingArguments
-    # --------------------
+    # TrainingArguments — IMPORTANT: no mixed precision flags on MPS
     args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         per_device_train_batch_size=BATCH_SIZE,
@@ -156,11 +136,11 @@ def main():
         logging_steps=LOG_STEPS,
         save_steps=SAVE_STEPS,
         save_total_limit=2,
-        evaluation_strategy=EVAL_STRATEGY,
+        eval_strategy="no",
         report_to="none",
-        bf16=False,        # not on MPS
-        fp16=True,         # we run fp16 on MPS/CPU to fit memory
-        dataloader_pin_memory=False,  # safer on MPS
+        bf16=False,
+        fp16=False,                   # <- must be False on MPS with Accelerate
+        dataloader_pin_memory=False,
         remove_unused_columns=False,
     )
 
@@ -168,30 +148,19 @@ def main():
         model=model,
         args=args,
         train_dataset=train_ds,
-        eval_dataset=test_ds if (test_ds and EVAL_STRATEGY != "no") else None,
-        tokenizer=tokenizer,
+        eval_dataset=test_ds if (test_ds and args.eval_strategy != "no") else None,
+        processing_class=tok,         # future-proof vs tokenizer deprecation
         data_collator=default_data_collator,
     )
 
-    # --------------------
-    # Train
-    # --------------------
     print("🚀 Starting training...")
     trainer.train()
     print("✅ Training completed.")
 
-    # --------------------
-    # Save adapter + tokenizer
-    # --------------------
     print(f"💾 Saving to {OUTPUT_DIR} ...")
     trainer.save_model()
-    tokenizer.save_pretrained(OUTPUT_DIR)
+    tok.save_pretrained(OUTPUT_DIR)
     print("✅ Saved adapter and tokenizer.")
-
-    # Info
-    steps = len(trainer.get_train_dataloader())
-    total_tokens_per_update = BATCH_SIZE * MAX_LEN * GRAD_ACCUM
-    print(f"ℹ️ Steps/epoch: {steps} | tokens/optimizer-step (approx): {total_tokens_per_update}")
     print("🎉 Done.")
 
 
