@@ -2,8 +2,6 @@
 # Standalone LoRA fine-tuning for meta-llama/Llama-3.1-8B-Instruct on NVIDIA GPUs.
 # No environment variables required. Uses QLoRA (4-bit) by default — recommended for 16 GB GPUs.
 
-# https://wormhole.app/PpModY#Qi72xK7_ep3g07fkcSJCFw
-
 import os
 from typing import Dict, List
 
