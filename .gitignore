@@ -209,3 +209,4 @@ __marimo__/
 data/runs
 .idea/
 checkpoints/
+.DS_Store

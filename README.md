@@ -19,7 +19,7 @@ It allows you to **record demonstrations**, **process them into training-ready d
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/yourusername/learning-from-demonstration.git
+git clone https://github.com/kasramojallal1/learning-from-demonstration.git
 cd learning-from-demonstration
 ```
 
@@ -49,12 +49,21 @@ learning-from-demonstration/
 ├── envs/
 │   └── bin_env.py    # 3D bin-packing simulation environment
 │
+├── lfd/
+│   └── logger.py     # Demonstration logger (JSON Lines)
+│
 ├── training/
-│   ├── sft_prepare.py   # Dataset preparation for fine-tuning
-│   ├── train_lora.py    # LoRA/QLoRA training script
-│   └── utils.py
+│   ├── sft_prepare.py               # Dataset preparation for fine-tuning
+│   ├── train_lora_llama32_3b.py     # LoRA/QLoRA fine-tuning (Llama 3.2 3B, the paper's planner)
+│   ├── train_lora_llama32_3b_nvidia_gpu.py
+│   ├── train_lora_llama31_8b.py
+│   └── train_lora_gemma2_2b.py
+│
+├── utils/
+│   └── geometry.py   # Rotation and placement geometry
 │
 ├── main.py           # Entry point for recording demonstrations
+├── main_datasets.py  # Same, on the paper's three box-sequence datasets
 └── README.md
 ```
 
@@ -71,10 +80,10 @@ This will produce a `binpack_lfd.jsonl` file in `data/demos/`.
 
 ---
 
-### 2️⃣ Replay Demonstrations
-Visualize recorded placements:
+### 2️⃣ Record on the Paper's Datasets
+Same recorder, but boxes are drawn from the three box-sequence datasets used in the paper comparison:
 ```bash
-python replay.py --file data/demos/binpack_lfd.jsonl
+python main_datasets.py --mode paper:data1 --bin 10 --placements 20 --seed 123   # also paper:data2, paper:data3
 ```
 
 ---
@@ -91,7 +100,7 @@ Output will be saved in `data/processed/`.
 ### 4️⃣ Fine-Tune with LoRA / QLoRA
 Example for QLoRA fine-tuning:
 ```bash
-python training/train_lora_gemma2_2b.py     --model meta-llama/Llama-3.2-1B     --dataset_dir data/processed     --output_dir models/llama3.2-qlora
+python training/train_lora_llama32_3b.py --model meta-llama/Llama-3.2-3B --dataset_dir data/processed --output_dir models/llama3.2-qlora
 ```
 
 ---
@@ -108,8 +117,18 @@ Make sure you have a **valid read token** from Hugging Face.
 ## 📊 Example Workflow
 1. **Record** – Use `main.py` to create bin packing runs.
 2. **Process** – Run `sft_prepare.py` to tokenize and store data.
-3. **Fine-Tune** – Train with `train_lora.py` using QLoRA for memory efficiency.
+3. **Fine-Tune** – Train with `training/train_lora_llama32_3b.py` using QLoRA for memory efficiency.
 4. **Deploy** – Use the fine-tuned model to generate packing paths for new boxes.
+
+---
+
+## 📊 Results
+
+This is the training half of **Packi**; the simulation, the hosted-model baselines and the dataset runner live in the companion repo, [llm-robotic-packer](https://github.com/kasramojallal1/llm-robotic-packer).
+
+The **Llama 3.2 3B model fine-tuned here with LoRA/QLoRA (4-bit)** on recorded demonstrations reached **87% bin utilization** and **outperformed 11 proprietary API models** (including GPT-4o, GPT-5-mini and Claude 3.7 Sonnet) while running on a **single 16 GB consumer GPU**.
+
+Paper: *Packi: Robotic 3D Bin Packing with LLMs Fine-tuned by Learning from Demonstration* (under review).
 
 ---
 

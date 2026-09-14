@@ -1,4 +1,14 @@
-# main_datasets.py  (Learning-from-Demonstration)
+"""
+Record bin-packing demonstrations on a chosen box-sequence generator.
+
+--mode ours          feasibility-aware random boxes (the original sampler)
+--mode paper:data1   the three box-sequence datasets used in the paper comparison
+--mode paper:data2
+--mode paper:data3
+
+Usage (from the repo root):
+  python main_datasets.py --mode paper:data1 --bin 10 --placements 20 --seed 123
+"""
 import os
 import random
 import argparse
