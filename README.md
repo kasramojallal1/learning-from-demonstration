@@ -44,7 +44,8 @@ learning-from-demonstration/
 │   ├── demos/        # Recorded demonstration datasets
 │   │   └── binpack_lfd.jsonl   # Main dataset (JSON Lines)
 │   ├── runs/         # Individual demonstration run logs
-│   └── processed/    # Training-ready datasets
+│   ├── processed/    # Split used for the originally submitted adapter (448 demos, 404/44)
+│   └── processed_v2/ # Split used for the revised adapter (sft_prepare.py output + manifest.json)
 │
 ├── envs/
 │   └── bin_env.py    # 3D bin-packing simulation environment
@@ -53,11 +54,17 @@ learning-from-demonstration/
 │   └── logger.py     # Demonstration logger (JSON Lines)
 │
 ├── training/
-│   ├── sft_prepare.py               # Dataset preparation for fine-tuning
-│   ├── train_lora_llama32_3b.py     # LoRA/QLoRA fine-tuning (Llama 3.2 3B, the paper's planner)
+│   ├── sft_prepare.py               # Demos -> SFT chats in the evaluation harness's exact prompt format
+│   ├── train_lora_v2.py             # LoRA recipe of the revised paper (assistant-only loss, bf16, no truncation)
+│   ├── packer_vendor/               # Verbatim copies of llm-robotic-packer's prompts.py and state_manager.py
+│   ├── RUNPOD.md                    # Step-by-step retraining + evaluation runbook and run log
+│   ├── requirements-train.txt
+│   ├── train_lora_llama32_3b.py     # Original submission recipe (Mac/MPS), kept for the record
 │   ├── train_lora_llama32_3b_nvidia_gpu.py
 │   ├── train_lora_llama31_8b.py
 │   └── train_lora_gemma2_2b.py
+│
+├── tests/            # pytest: vendored files in sync with the packer repo; data pipeline invariants
 │
 ├── utils/
 │   └── geometry.py   # Rotation and placement geometry
@@ -89,26 +96,40 @@ python main_datasets.py --mode paper:data1 --bin 10 --placements 20 --seed 123  
 ---
 
 ### 3️⃣ Prepare Dataset for Training
-Convert raw demonstrations into a processed dataset:
+Convert raw demonstrations into SFT chats:
 ```bash
 python training/sft_prepare.py
 ```
-Output will be saved in `data/processed/`.
+Output goes to `data/processed_v2/` (`train.jsonl`, `test.jsonl`, `manifest.json`).
+The script replays the demo file to recover each bin state, re-serializes it
+exactly as the evaluation harness does (top-8 anchors per rotation, shuffled
+order and ids, same prompt builder — `training/packer_vendor/` is a verbatim
+copy of the packer repo's code, checked by `pytest tests/`), writes one *pick*
+and one *path* chat per demonstration, and splits 90/10 by episode. Records
+recorded before the 2025-08-11 anchor-generator fix are dropped (21 of 667);
+the manifest lists every dropped record and the held-out episodes.
 
 ---
 
-### 4️⃣ Fine-Tune with LoRA / QLoRA
-Example for QLoRA fine-tuning:
+### 4️⃣ Fine-Tune with LoRA
 ```bash
-python training/train_lora_llama32_3b.py --model meta-llama/Llama-3.2-3B --dataset_dir data/processed --output_dir models/llama3.2-qlora
+python training/train_lora_v2.py
 ```
+Defaults are the paper's recipe (Llama 3.2 3B Instruct, r 16, α 32, lr 2e-4,
+3 epochs, effective batch 64, max_len 2048, bf16, loss on assistant tokens
+only, seed 42); every knob is an environment variable and is written to
+`checkpoints/<adapter>/train_config.json` together with the data hashes, git
+commit and software versions. See `training/RUNPOD.md` for the full run
+protocol. The scripts `train_lora_llama32_3b*.py`, `train_lora_gemma2_2b.py`
+and `train_lora_llama31_8b.py` are the original-submission recipes, kept
+unchanged for the record.
 
 ---
 
 ## 🔑 Hugging Face Authentication
 If your model requires authentication:
 ```bash
-huggingface-cli login
+hf auth login
 ```
 Make sure you have a **valid read token** from Hugging Face.
 
@@ -116,8 +137,8 @@ Make sure you have a **valid read token** from Hugging Face.
 
 ## 📊 Example Workflow
 1. **Record** – Use `main.py` to create bin packing runs.
-2. **Process** – Run `sft_prepare.py` to tokenize and store data.
-3. **Fine-Tune** – Train with `training/train_lora_llama32_3b.py` using QLoRA for memory efficiency.
+2. **Process** – Run `sft_prepare.py` to build the SFT chats.
+3. **Fine-Tune** – Train with `training/train_lora_v2.py`.
 4. **Deploy** – Use the fine-tuned model to generate packing paths for new boxes.
 
 ---
