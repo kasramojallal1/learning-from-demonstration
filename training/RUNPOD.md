@@ -33,6 +33,14 @@ python training/sft_prepare.py         # -> data/processed_v2/{train,test}.jsonl
 
 ## 2. Train
 
+Smoke test first (2 optimizer steps, ~2 min, throw-away output):
+
+```bash
+MAX_STEPS=2 OUTPUT_DIR=/tmp/smoke python training/train_lora_v2.py && ls /tmp/smoke
+```
+
+Then the real run:
+
 ```bash
 mkdir -p checkpoints/lfd-lora-llama32-3b-v2
 python training/train_lora_v2.py 2>&1 | tee checkpoints/lfd-lora-llama32-3b-v2/train.log

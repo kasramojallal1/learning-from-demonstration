@@ -17,7 +17,7 @@ Knobs (env, all with the paper's defaults):
     DATA_DIR    data/processed_v2                     SEED 42
     LORA_R 16   LORA_ALPHA 32   LORA_DROPOUT 0.05     LORA_TARGET q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
     LR 2e-4     EPOCHS 3        BATCH_SIZE 2          GRAD_ACCUM 32   WARMUP_RATIO 0.03   MAX_GRAD_NORM 1.0
-    MAX_LEN 2048                DATE_STRING "26 Jul 2024"
+    MAX_LEN 2048                DATE_STRING "26 Jul 2024"      MAX_STEPS -1 (set e.g. 2 with OUTPUT_DIR=/tmp/smoke for a smoke test)
 """
 from __future__ import annotations
 
@@ -63,6 +63,7 @@ CFG: Dict = {
     "optimizer": "adamw_torch",
     "weight_decay": 0.0,
     "max_len": int(os.environ.get("MAX_LEN", "2048")),
+    "max_steps": int(os.environ.get("MAX_STEPS", "-1")),   # >0 only for a smoke test; the paper run uses epochs
     "date_string": os.environ.get("DATE_STRING", "26 Jul 2024"),   # D42, same constant in the packer harness
     "precision": "bf16",
     "quantization": "none",
@@ -180,7 +181,7 @@ def main():
         output_dir=out, seed=CFG["seed"], data_seed=CFG["seed"],
         per_device_train_batch_size=CFG["batch_size"], per_device_eval_batch_size=CFG["batch_size"],
         gradient_accumulation_steps=CFG["grad_accum"],
-        learning_rate=CFG["lr"], num_train_epochs=CFG["epochs"],
+        learning_rate=CFG["lr"], num_train_epochs=CFG["epochs"], max_steps=CFG["max_steps"],
         lr_scheduler_type=CFG["lr_scheduler"], warmup_ratio=CFG["warmup_ratio"],
         max_grad_norm=CFG["max_grad_norm"], optim=CFG["optimizer"], weight_decay=CFG["weight_decay"],
         bf16=True, fp16=False,
