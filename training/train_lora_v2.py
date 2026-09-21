@@ -163,7 +163,7 @@ def main():
     print("data:", json.dumps({k: v for k, v in data_info.items() if k != "manifest"}))
 
     model = AutoModelForCausalLM.from_pretrained(
-        CFG["model_name"], torch_dtype=torch.bfloat16, attn_implementation=CFG["attn_implementation"],
+        CFG["model_name"], dtype=torch.bfloat16, attn_implementation=CFG["attn_implementation"],
         low_cpu_mem_usage=True,
     ).to("cuda")
     model.config.use_cache = False
@@ -177,18 +177,23 @@ def main():
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
 
+    import inspect
+    ta_params = inspect.signature(TrainingArguments.__init__).parameters
+    # transformers < 5: warmup_ratio=<ratio>;  transformers >= 5: warmup_steps=<float ratio in [0,1)>
+    warmup_kw = ({"warmup_ratio": CFG["warmup_ratio"]} if "warmup_ratio" in ta_params
+                 else {"warmup_steps": CFG["warmup_ratio"]})
     args = TrainingArguments(
         output_dir=out, seed=CFG["seed"], data_seed=CFG["seed"],
         per_device_train_batch_size=CFG["batch_size"], per_device_eval_batch_size=CFG["batch_size"],
         gradient_accumulation_steps=CFG["grad_accum"],
         learning_rate=CFG["lr"], num_train_epochs=CFG["epochs"], max_steps=CFG["max_steps"],
-        lr_scheduler_type=CFG["lr_scheduler"], warmup_ratio=CFG["warmup_ratio"],
+        lr_scheduler_type=CFG["lr_scheduler"], **warmup_kw,
         max_grad_norm=CFG["max_grad_norm"], optim=CFG["optimizer"], weight_decay=CFG["weight_decay"],
         bf16=True, fp16=False,
         logging_strategy="steps", logging_steps=1,
         eval_strategy="epoch", save_strategy="epoch", save_total_limit=3,
         report_to="none", remove_unused_columns=False,
-        dataloader_num_workers=2, group_by_length=False,
+        dataloader_num_workers=2,
     )
     trainer = Trainer(
         model=model, args=args, train_dataset=train_ds, eval_dataset=test_ds,
