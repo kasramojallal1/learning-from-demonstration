@@ -13,6 +13,25 @@ filled in from the files the run produced, never typed from memory.
 | Disk | ≥ 40 GB volume (base model 6.4 GB, checkpoints ~0.3 GB, packer results) |
 | Access | web terminal or SSH; Kasra creates the pod and enters the Hugging Face token himself |
 
+## 0. Check the host CPU before anything else (D43)
+
+RunPod hosts vary; a throttled/oversubscribed CPU makes LLM decoding 10× slower
+(kernel-launch bound) even when the GPU is fine. Run this first and stop the pod
+if the numbers are bad:
+
+```bash
+python -c "
+import time; t=time.time(); s=0
+for i in range(10_000_000): s+=i
+print('python 10M-loop: %.2fs (healthy 0.4-0.7 s)' % (time.time()-t))
+import torch; x=torch.randn(1,64,device='cuda'); torch.cuda.synchronize(); t=time.time()
+for _ in range(2000): x=x+1
+torch.cuda.synchronize(); print('kernel launch: %.0f us (healthy 5-15 us)' % ((time.time()-t)/2000*1e6))"
+```
+
+2026-09-21: training pod `dbchl4u4tv7xro` measured 5.95 s / 104 µs (bad);
+evaluation pod `7krubot06c0pw3` measured 0.68 s / 14 µs (good).
+
 ## 1. Code and data
 
 ```bash
@@ -114,3 +133,4 @@ then commit `results/` from the Mac (D27).
 | Loss | train: 0.59 (step 1) → mean 0.062 (epoch 2) → mean 0.052 (epoch 3); validation: 0.0718 (epoch 1), 0.0566 (epoch 2), **0.0557** (epoch 3, final) |
 | Adapter | `checkpoints/lfd-lora-llama32-3b-v2/adapter_model.safetensors` (97,307,544 bytes), archived at `https://huggingface.co/kasramojallal/packi-llama32-3b-lora-v2` (private, commit `1507c0a0`) together with `train_config.json`, `versions.json`, `trainer_state.json`, `train.log` |
 | Packer | adapter copied to `llm-robotic-packer/models/llama32-3b-v2/`; harness commit `41b548e` (branch `claude/t0.10-retrain`) |
+| Evaluation pod (D43) | `7krubot06c0pw3`: 1 × NVIDIA GeForce RTX 5090 (32 GB), driver 570.195.03, AMD EPYC 7543 host, 15 vCPU, 62 GB RAM, $0.99/h; same image and Python stack as the training pod. Chosen because no RTX 4090 was available and the training pod's host CPU was throttled. Pick call 0.77 s median, path 1.2 s |
