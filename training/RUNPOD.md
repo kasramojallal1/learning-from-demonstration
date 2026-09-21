@@ -110,4 +110,7 @@ then commit `results/` from the Mac (D27).
 | Trainable params | 24,313,856 of 3,237,063,680 (0.75 %) |
 | Smoke test (`MAX_STEPS=2`) | passed: step losses 0.592, 0.596; eval loss 0.330; 223 s |
 | Note | transformers 5 renamed `warmup_ratio` → `warmup_steps` (float = ratio); the script handles both (commit `b5fa8a2`) |
-| Full run | _(in progress)_ |
+| Full run | 57 optimizer steps (19 / epoch), 1 h 22 min wall (4947.5 s), ~87 s per step; peak GPU memory ~15 GB |
+| Loss | train: 0.59 (step 1) → mean 0.062 (epoch 2) → mean 0.052 (epoch 3); validation: 0.0718 (epoch 1), 0.0566 (epoch 2), **0.0557** (epoch 3, final) |
+| Adapter | `checkpoints/lfd-lora-llama32-3b-v2/adapter_model.safetensors` (97,307,544 bytes), archived at `https://huggingface.co/kasramojallal/packi-llama32-3b-lora-v2` (private, commit `1507c0a0`) together with `train_config.json`, `versions.json`, `trainer_state.json`, `train.log` |
+| Packer | adapter copied to `llm-robotic-packer/models/llama32-3b-v2/`; harness commit `41b548e` (branch `claude/t0.10-retrain`) |
