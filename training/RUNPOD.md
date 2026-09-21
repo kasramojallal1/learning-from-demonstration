@@ -62,14 +62,14 @@ loss), `versions.json` (Python, torch, transformers, peft, CUDA, driver, GPU),
 ## 3. Archive the adapter (D40)
 
 ```bash
-hf upload <hf-user>/packi-llama32-3b-lora-v2 checkpoints/lfd-lora-llama32-3b-v2 . --private
+hf upload kasramojallal/packi-llama32-3b-lora-v2 checkpoints/lfd-lora-llama32-3b-v2 . --private
 ```
 
 Locally, pull it into both repos (adapters are git-ignored):
 
 ```bash
-hf download <hf-user>/packi-llama32-3b-lora-v2 --local-dir learning-from-demonstration/checkpoints/lfd-lora-llama32-3b-v2
-hf download <hf-user>/packi-llama32-3b-lora-v2 --local-dir llm-robotic-packer/models/llama32-3b-v2
+hf download kasramojallal/packi-llama32-3b-lora-v2 --local-dir learning-from-demonstration/checkpoints/lfd-lora-llama32-3b-v2
+hf download kasramojallal/packi-llama32-3b-lora-v2 --local-dir llm-robotic-packer/models/llama32-3b-v2
 ```
 
 ## 4. Evaluate with the harness (packer repo, same pod)
@@ -80,7 +80,7 @@ git clone https://github.com/kasramojallal1/llm-robotic-packer.git
 cd llm-robotic-packer
 git checkout <branch-or-tag>           # must contain config.LORA_DIR = models/llama32-3b-v2 (D41)
 pip install numpy openai python-dotenv
-hf download <hf-user>/packi-llama32-3b-lora-v2 --local-dir models/llama32-3b-v2
+hf download kasramojallal/packi-llama32-3b-lora-v2 --local-dir models/llama32-3b-v2
 python -m pytest tests/ -q
 
 python evaluate.py --method packi      --all --quiet
@@ -94,7 +94,7 @@ python aggregate.py
 Each run JSON records the git commit, GPU name, torch version, and per-call
 latency (mean / median / p95) — the numbers the paper quotes for hardware and
 latency.  Bring `results/` back the same way as the adapter
-(`hf upload <hf-user>/packi-llama32-3b-lora-v2 results results --private`),
+(`hf upload kasramojallal/packi-llama32-3b-lora-v2 results results --private`),
 then commit `results/` from the Mac (D27).
 
 ## Run log
