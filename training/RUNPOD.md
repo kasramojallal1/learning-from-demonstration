@@ -97,7 +97,17 @@ latency.  Bring `results/` back the same way as the adapter
 (`hf upload kasramojallal/packi-llama32-3b-lora-v2 results results --private`),
 then commit `results/` from the Mac (D27).
 
-## Run log
+## Run log — 2026-09-21
 
-_(filled in after the run: pod id, GPU, versions.json contents, commit hashes,
-step count, final eval loss, wall time, result file paths)_
+| Item | Value |
+|---|---|
+| Pod | RunPod Secure Cloud, id `dbchl4u4tv7xro`, 1 × NVIDIA GeForce RTX 4090 (24 GB, 23.5 GiB usable), 16 vCPU, 41 GB RAM, 50 GB container disk, $0.75/h |
+| Image | `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` |
+| Versions (`versions.json`) | Python 3.12.3, torch 2.8.0+cu128, transformers 5.17.0, peft 0.21.0, datasets 5.0.1, accelerate 1.15.0, CUDA 12.8, cuDNN 91002, driver 595.91.07, Linux 6.8.0-138 |
+| LfD commit | `b5fa8a2` (branch `claude/loving-wilbur-121164`), clean tree |
+| Data | `sft_prepare.py` on the pod reproduced the Mac output exactly: 646 kept, 1156 / 136 chats, input sha256 `1cbdf421…`; train.jsonl sha256 `dbd80d47…`, test.jsonl `8c0c6466…` |
+| Token lengths (pod, Llama tokenizer) | train chats 252–1440 tokens (median 402); label tokens 15–24 |
+| Trainable params | 24,313,856 of 3,237,063,680 (0.75 %) |
+| Smoke test (`MAX_STEPS=2`) | passed: step losses 0.592, 0.596; eval loss 0.330; 223 s |
+| Note | transformers 5 renamed `warmup_ratio` → `warmup_steps` (float = ratio); the script handles both (commit `b5fa8a2`) |
+| Full run | _(in progress)_ |
