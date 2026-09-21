@@ -134,3 +134,22 @@ then commit `results/` from the Mac (D27).
 | Adapter | `checkpoints/lfd-lora-llama32-3b-v2/adapter_model.safetensors` (97,307,544 bytes), archived at `https://huggingface.co/kasramojallal/packi-llama32-3b-lora-v2` (private, commit `1507c0a0`) together with `train_config.json`, `versions.json`, `trainer_state.json`, `train.log` |
 | Packer | adapter copied to `llm-robotic-packer/models/llama32-3b-v2/`; harness commit `41b548e` (branch `claude/t0.10-retrain`) |
 | Evaluation pod (D43) | `7krubot06c0pw3`: 1 × NVIDIA GeForce RTX 5090 (32 GB), driver 570.195.03, AMD EPYC 7543 host, 15 vCPU, 62 GB RAM, $0.99/h; same image and Python stack as the training pod. Chosen because no RTX 4090 was available and the training pod's host CPU was throttled. Pick call 0.77 s median, path 1.2 s |
+| Harness runs (evaluation pod, 100 runs, 2026-09-21 16:55–21:53 UTC) | packer branch `claude/t0.10-retrain`: `packi` plain / `--shuffle-anchors` / `--no-feedback` (commit `8503011`), `base-llama` plain / `--shuffle-anchors` (commit `71bb3dc`); run JSONs record harness commit `4e07438` (the five plain curriculum25 packi runs: `41b548e`, identical sequence files) |
+| Cost | training pod ≈ $3.5 (incl. the aborted slow evaluation), evaluation pod ≈ $5 |
+
+### Results (utilization, mean ± std over seeds 0–4; `python aggregate.py`)
+
+| method | variant | curriculum25 | data1 | data2 | data3 |
+|---|---|---|---|---|---|
+| packi (v2 adapter) | plain | 0.731 ± 0.067 | 0.650 ± 0.071 | 0.757 ± 0.042 | 0.686 ± 0.080 |
+| packi | shuffled ids | 0.674 ± 0.070 | 0.670 ± 0.026 | 0.731 ± 0.039 | 0.672 ± 0.107 |
+| packi | no feedback | = plain (no retry ever occurred) | | | |
+| base-llama (no adapter) | plain | 0.360 ± 0.084 | 0.256 ± 0.086 | 0.243 ± 0.055 | 0.290 ± 0.035 |
+| base-llama | shuffled ids | 0.442 ± 0.043 | 0.377 ± 0.046 | 0.416 ± 0.057 | 0.376 ± 0.031 |
+| greedy (no LLM) | | 0.707 ± 0.037 | 0.727 ± 0.060 | 0.828 ± 0.054 | 0.689 ± 0.017 |
+| random | | 0.630 ± 0.030 | 0.600 ± 0.047 | 0.648 ± 0.099 | 0.589 ± 0.036 |
+
+Reliability: packi — first-attempt validity 1.00, 0 invalid JSON, 0 retries, 0
+path collisions on all 60 runs; 1.1–1.5 s per box (pick + path) on the RTX 5090.
+base-llama — first-attempt validity 0.13–0.19, 4–5 retries per box, 58–97
+invalid-JSON outputs and 17–36 path collisions per run, 1.8–2.3 s per box.
