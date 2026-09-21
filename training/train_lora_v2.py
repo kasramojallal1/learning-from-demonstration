@@ -18,6 +18,9 @@ Knobs (env, all with the paper's defaults):
     LORA_R 16   LORA_ALPHA 32   LORA_DROPOUT 0.05     LORA_TARGET q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
     LR 2e-4     EPOCHS 3        BATCH_SIZE 2          GRAD_ACCUM 32   WARMUP_RATIO 0.03   MAX_GRAD_NORM 1.0
     MAX_LEN 2048                DATE_STRING "26 Jul 2024"      MAX_STEPS -1 (set e.g. 2 with OUTPUT_DIR=/tmp/smoke for a smoke test)
+
+Packi-E (T3.7, D52) uses the same script with only the data and output changed:
+    DATA_DIR=data/processed_e OUTPUT_DIR=checkpoints/lfd-lora-llama32-3b-e python training/train_lora_v2.py
 """
 from __future__ import annotations
 
@@ -87,7 +90,8 @@ def git_info() -> Dict:
             return subprocess.check_output(["git", *args], cwd=REPO_ROOT, stderr=subprocess.DEVNULL).decode().strip()
         except Exception:
             return None
-    dirty = run("status", "--porcelain", "--", ".", ":(exclude)data/processed_v2", ":(exclude)checkpoints")
+    dirty = run("status", "--porcelain", "--", ".", ":(exclude)data/processed_v2", ":(exclude)data/processed_e",
+                ":(exclude)checkpoints")
     return {"commit": run("rev-parse", "HEAD"), "branch": run("rev-parse", "--abbrev-ref", "HEAD"),
             "dirty": bool(dirty) if dirty is not None else None}
 

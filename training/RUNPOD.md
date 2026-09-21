@@ -153,3 +153,64 @@ Reliability: packi — first-attempt validity 1.00, 0 invalid JSON, 0 retries, 0
 path collisions on all 60 runs; 1.1–1.5 s per box (pick + path) on the RTX 5090.
 base-llama — first-attempt validity 0.13–0.19, 4–5 retries per box, 58–97
 invalid-JSON outputs and 17–36 path collisions per run, 1.8–2.3 s per box.
+
+---
+
+# Packi-E: the adapter trained on privileged-expert demonstrations (T3.7, D52)
+
+Same recipe as above; only the teacher changes.  The demonstrations come from the
+packer repo's beam-search expert (`llm-robotic-packer/harness/expert.py`, width
+1000, top-8 shortlist, never worse than greedy) on 1,000 fresh training sequences
+(4 datasets × generator seeds 1000–1249; evaluation seeds 0–4 are refused by the
+generator).  They are committed here as `data/demos/expert_beam1000.jsonl.gz`
+with `data/demos/expert_beam1000.manifest.json` (per-episode expert and greedy
+utilization, packer commit, sha256).
+
+## E0. Pod
+
+RTX 5090 (32 GB, $0.99/h) — chosen for step speed (Kasra, 2026-09-21).  Run the
+CPU benchmark of step 0 first; stop the pod if it is throttled.
+
+## E1. Data
+
+```bash
+python -m pytest tests/ -q
+python training/sft_prepare.py --input data/demos/expert_beam1000.jsonl.gz --out data/processed_e
+```
+
+`manifest.json` must show `sources: {"expert": N}` with N = the demo file's record
+count, `dropped_records: {}`, `forced_include_records: []` (every expert label is
+inside the shortlist by construction).  `data/processed_e/` is git-ignored (it is
+~60k chats and is reproduced deterministically from the committed demo file).
+
+## E2. Measure the step time before committing to the run (D52 amendment)
+
+```bash
+MAX_STEPS=5 DATA_DIR=data/processed_e OUTPUT_DIR=/tmp/smoke_e python training/train_lora_v2.py
+```
+
+Read seconds/step from the log; planned steps = 3 × ceil(train_examples / 64).
+Kasra approves hours and dollars before E3 starts.
+
+## E3. Train
+
+```bash
+mkdir -p checkpoints/lfd-lora-llama32-3b-e
+DATA_DIR=data/processed_e OUTPUT_DIR=checkpoints/lfd-lora-llama32-3b-e \
+  python training/train_lora_v2.py 2>&1 | tee checkpoints/lfd-lora-llama32-3b-e/train.log
+```
+
+## E4. Archive (D40) and evaluate
+
+```bash
+hf upload kasramojallal/packi-llama32-3b-lora-e checkpoints/lfd-lora-llama32-3b-e . --private
+# packer repo, same pod (config.LORA_DIR_E = models/llama32-3b-e):
+hf download kasramojallal/packi-llama32-3b-lora-e --local-dir models/llama32-3b-e
+python evaluate.py --method packi-e --all --quiet
+python evaluate.py --method packi-e --all --quiet --shuffle-anchors
+python aggregate.py
+```
+
+## Run log — Packi-E
+
+_(filled in from the produced files)_

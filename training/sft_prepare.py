@@ -26,6 +26,15 @@ Steps
   3. Shuffle ids/order per record (D34); the label follows.
   4. Split 90/10 by episode with random.Random(13) (D38).
 
+Expert demonstrations (T3.7, D52; written by llm-robotic-packer/generate_expert_demos.py,
+`meta.source == "expert"`, explicit `episode` field, state already in the packer's
+unshuffled top-8 view) take a different step 1: the bin is replayed per episode from
+the records' own labels and the stored state must equal the packer view recomputed
+from that bin (safety net); a record whose label is not in the shortlist is dropped
+(never force-included).  Steps 2-4 are identical.  `--input` may be gzip-compressed.
+
+    python training/sft_prepare.py --input data/demos/expert_beam1000.jsonl.gz --out data/processed_e
+
 Outputs (OUT_DIR, default data/processed_v2/):
     train.jsonl, test.jsonl   one example per line: {"messages": [...], "kind", "record", "episode"}
     manifest.json             counts, dropped records, split, seeds, input hash
@@ -33,6 +42,7 @@ Outputs (OUT_DIR, default data/processed_v2/):
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import random
@@ -85,12 +95,41 @@ def chosen_anchor(rec: Dict) -> Tuple[int, List[int], List[int]]:
     return ri, list(st["incoming_box"]["rotations"][ri]), list(pos)
 
 
+def is_expert(rec: Dict) -> bool:
+    return rec.get("meta", {}).get("source") == "expert" and "episode" in rec
+
+
+def replay_expert(records: List[Dict]):
+    """
+    Expert records (T3.7): the episode id is explicit; the bin is replayed from the
+    labels within each episode.  status "ok" iff the stored state equals the packer's
+    unshuffled top-8 view of the replayed bin and the label is in the shortlist.
+    """
+    placed: List[Dict] = []
+    episode = None
+    for i, rec in enumerate(records):
+        if rec["episode"] != episode:
+            placed, episode = [], rec["episode"]
+        view, info = packer_view(placed, rec, None)
+        status = "ok" if (view is not None and not info[1] and view == rec["state"]) else "unreproduced"
+        yield i, rec, episode, [dict(b) for b in placed], status
+        ri, size, pos = chosen_anchor(rec)
+        placed.append({"pos": pos, "size": size})
+
+
 def replay(records: List[Dict]):
     """
     Yield (index, record, episode_id, placed_before, status) in file order.
     status: "ok" | "unreproduced" (D32).  The placement is applied to the
     replayed bin in every case so that later records stay consistent.
+    A file of expert records (all or none) is dispatched to `replay_expert`.
     """
+    n_expert = sum(is_expert(r) for r in records)
+    if n_expert:
+        if n_expert != len(records):
+            raise ValueError("mixed human/expert demo files are not supported; prepare them separately")
+        yield from replay_expert(records)
+        return
     placed: List[Dict] = []
     episode = -1
     for i, rec in enumerate(records):
@@ -171,7 +210,8 @@ def prepare(in_path: Path = IN_PATH, out_dir: Path = OUT_DIR, shuffle: bool = Tr
             split_seed: int = SPLIT_SEED, shuffle_seed: int = SHUFFLE_SEED,
             test_fraction: float = TEST_FRACTION) -> Dict:
     raw = in_path.read_bytes()
-    records = [json.loads(l) for l in raw.decode().splitlines() if l.strip()]
+    text = gzip.decompress(raw).decode() if in_path.suffix == ".gz" else raw.decode()
+    records = [json.loads(l) for l in text.splitlines() if l.strip()]
 
     kept: List[Tuple[int, int, Dict, str]] = []   # (idx, episode, state, label_id)
     dropped: Dict[str, List[int]] = {}
@@ -192,8 +232,8 @@ def prepare(in_path: Path = IN_PATH, out_dir: Path = OUT_DIR, shuffle: bool = Tr
             forced_records.append(idx)
         kept.append((idx, episode, state, label_id))
 
-    # D38: split by episode
-    episodes = sorted({ep for _, ep, _, _ in kept})
+    # D38: split by episode (human episodes are ints, expert episodes strings; ints sort first, unchanged)
+    episodes = sorted({ep for _, ep, _, _ in kept}, key=lambda e: (isinstance(e, str), e))
     per_ep = Counter(ep for _, ep, _, _ in kept)
     order = list(episodes)
     random.Random(split_seed).shuffle(order)
@@ -215,8 +255,10 @@ def prepare(in_path: Path = IN_PATH, out_dir: Path = OUT_DIR, shuffle: bool = Tr
             for r in rows:
                 f.write(json.dumps(r, separators=(",", ":")) + "\n")
 
+    sources = Counter(records[idx].get("meta", {}).get("source", "human") for idx, _, _, _ in kept)
     manifest = {
         "input": str(in_path.relative_to(ROOT)) if in_path.is_relative_to(ROOT) else str(in_path),
+        "sources": dict(sources),
         "input_sha256": hashlib.sha256(raw).hexdigest(),
         "input_records": len(records),
         "kept_records": len(kept),

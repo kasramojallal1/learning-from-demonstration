@@ -210,3 +210,4 @@ data/runs
 .idea/
 checkpoints/
 .DS_Store
+data/processed_e/
