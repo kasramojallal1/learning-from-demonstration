@@ -1,4 +1,4 @@
-"""The vendored packer files must stay byte-identical to the packer repo (D31)."""
+"""The vendored packer files must stay byte-identical to the packer repo (D31b)."""
 import hashlib
 from pathlib import Path
 

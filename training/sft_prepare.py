@@ -1,7 +1,7 @@
 # training/sft_prepare.py
 """
 Turn the recorded demonstrations into SFT examples that match the evaluation
-harness call-for-call (D24, D31-D38).
+harness call-for-call (D24, D31b-D38).
 
 For every kept demo record two chat examples are written:
 
@@ -62,7 +62,7 @@ SHUFFLE_SEED = 2026   # D34
 TEST_FRACTION = 0.10
 # Records before this UTC timestamp were recorded with the pre-fix anchor generator
 # (fixed in commit 36a3f4f, 2025-08-11 11:16 -0400; the fixed code was already in
-# the working tree from record 21 on, 15:10:42 UTC).  D30/D32.
+# the working tree from record 21 on, 15:10:42 UTC).  D30b/D32.
 PRE_FIX_CUTOFF_TS = "2025-08-11T15:10:00"
 
 

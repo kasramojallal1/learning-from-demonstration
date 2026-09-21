@@ -1,4 +1,4 @@
-"""sft_prepare.py: the training view must be the harness's view (D31-D38)."""
+"""sft_prepare.py: the training view must be the harness's view (D31b-D38)."""
 import json
 import random
 import sys
