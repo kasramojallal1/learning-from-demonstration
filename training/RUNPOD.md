@@ -211,6 +211,36 @@ python evaluate.py --method packi-e --all --quiet --shuffle-anchors
 python aggregate.py
 ```
 
-## Run log — Packi-E
+## Run log — Packi-E (2026-09-21/22)
 
-_(filled in from the produced files)_
+| Item | Value |
+|---|---|
+| Pod | RunPod Secure Cloud (EUR-NO-1), id `vk78ra9hkypn4g`, name `packi-e-5090`, 1 × RTX 5090 (32 GB, 31.4 GiB usable), 15 vCPU (AMD EPYC 7543), 117 GB RAM, 50 GB container disk, $0.99/h; image `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` |
+| CPU benchmark (step 0) | Python 10M-loop 0.97 s, kernel launch 16 µs — healthy (the throttled 4090 pod of D43 measured 5.95 s / 104 µs) |
+| Versions (`versions.json`) | Python 3.12.3, torch 2.8.0+cu128, transformers 5.17.0, peft 0.21.0, datasets 5.0.1, accelerate 1.15.0, CUDA 12.8, cuDNN 91002, driver 570.195.03, Linux 6.14.0-35 |
+| LfD commit | `65146b5` (branch `claude/t3.7-packi-e`), clean tree |
+| Data | `sft_prepare.py --input data/demos/expert_beam1000.jsonl.gz` on the pod reproduced the Mac output exactly: 24,753 kept, 0 dropped, 0 force-included, 1,000 episodes (101 held out), **44,520 train / 4,986 test chats**; train.jsonl sha256 `bda40ac1…`, test.jsonl `993bfb45…`, demo file `d30dd5e5…` |
+| Token lengths (pod) | train chats 252–1,419 tokens (median 402); label tokens 15–24 — same scale as the human set, no truncation at max_len 2048 |
+| Trainable params | 24,313,856 of 3,237,063,680 (0.75 %) |
+| Timing test (`MAX_STEPS=5`) | 13.6 s/step, eval over 4,986 chats 250 s; losses 0.602 → 0.130, eval 0.114. Basis for Kasra's approval of 3 epochs (2,088 steps ≈ 8 h ≈ $8) |
+| Full run | 2,088 optimizer steps (696 / epoch), **8 h 13 min** (29,600 s), 14.2 s/step; started 2026-09-22 01:04 UTC, finished 09:17 UTC; peak GPU memory ~17 GB |
+| Loss | train 0.602 (step 1) → 0.0247 (end of epoch 1) → mean 0.0216 (epoch 3) → 0.0174 (last step); **validation 0.0300 / 0.0253 / 0.0243** (epochs 1–3). Packi-H for contrast: final validation 0.0557 on 1,156 chats |
+| Adapter | `checkpoints/lfd-lora-llama32-3b-e/adapter_model.safetensors` (97,307,544 bytes — same shape as v2), archived at `https://huggingface.co/kasramojallal/packi-llama32-3b-lora-e` (private) with `train_config.json`, `versions.json`, `trainer_state.json`, `train.log` |
+| Evaluation | same pod, packer commit `6160690` (clean), `models/llama32-3b-e/`; 40 runs (4 datasets × seeds 0–4 × {plain, `--shuffle-anchors`}) 09:17–10:06 UTC; `--no-feedback` not run (Packi-E never retried, so it is identical to plain) |
+| Unattended chain | `/workspace/after_train.sh` ran train → HF upload → 40 evaluations → HF upload of `results/packi-e` without supervision; log kept in the session scratchpad |
+| Cost | ≈ $12.4 for 12.5 h (8.2 h training, 0.8 h evaluation, ~3 h idle before the pod was stopped at 13:15 UTC); balance $15.43 → $2.99 |
+
+### Results (utilization, mean ± std over seeds 0–4; `python aggregate.py` in the packer repo)
+
+| method | teacher | curriculum25 | data1 | data2 | data3 |
+|---|---|---|---|---|---|
+| random | — | 0.630 | 0.600 | 0.648 | 0.589 |
+| greedy (no LLM) | — | 0.707 ± 0.042 | 0.727 ± 0.067 | 0.828 ± 0.060 | 0.689 ± 0.019 |
+| base-llama (no adapter) | — | 0.360 | 0.256 | 0.243 | 0.290 |
+| Packi-H (v2 adapter) | 646 human demos | 0.731 ± 0.075 | 0.650 ± 0.080 | 0.757 ± 0.047 | 0.686 ± 0.089 |
+| **Packi-E (this run)** | **24,753 expert demos** | **0.789 ± 0.103** | **0.709 ± 0.055** | **0.791 ± 0.023** | **0.750 ± 0.058** |
+| Packi-E, shuffled ids | | 0.802 ± 0.064 | 0.726 ± 0.056 | 0.802 ± 0.020 | 0.725 ± 0.041 |
+| oracle (beam 1000, sees the future) | — | 0.846 ± 0.083 | 0.848 ± 0.061 | 0.898 ± 0.025 | 0.793 ± 0.065 |
+
+Packi-E reliability: first-attempt validity 1.00, 0 invalid JSON, 0 retries, 0 path
+collisions on all 40 runs; 1.07–1.58 s per box on the RTX 5090 (p95 1.44–2.29 s).
