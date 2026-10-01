@@ -244,3 +244,62 @@ python aggregate.py
 
 Packi-E reliability: first-attempt validity 1.00, 0 invalid JSON, 0 retries, 0 path
 collisions on all 40 runs; 1.07–1.58 s per box on the RTX 5090 (p95 1.44–2.29 s).
+
+---
+
+# Second backbone: Qwen3-4B-Instruct-2507 (T9.2; R1.9; D65–D68)
+
+Same recipe, same data files, same prompts, same harness; only `MODEL_NAME`
+changes.  Two adapters (human → `qwen3-4b-h`, expert → `qwen3-4b-e`) plus the
+unadapted base (`base-qwen3-4b`).  Qwen's chat template has no date, so the
+pinned `DATE_STRING` is passed but unused; its turn terminator `<|im_end|>` is
+the tokenizer's `eos_token`, so the harness stops on it without any change.
+Verified on the Mac before the run: all 1,292 human and 49,506 expert chats
+tokenize with the prompt as an exact prefix, 232–1,422 tokens, labels 16–27.
+
+Pods (D66): **A** = RTX 5090 (human training + every evaluation, the card the
+Packi-H/E latencies come from); **B** = H100-class (expert training only).
+Both: image `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`, step 0 CPU
+benchmark first, then the stack pinned to the Packi runs:
+
+```bash
+pip install transformers==5.17.0 peft==0.21.0 datasets==5.0.1 accelerate==1.15.0 "huggingface_hub>=0.30" pytest
+```
+
+## Q1. Data (both pods)
+
+```bash
+python -m pytest tests/ -q
+python training/sft_prepare.py                                                   # human  -> data/processed_v2
+python training/sft_prepare.py --input data/demos/expert_beam1000.jsonl.gz --out data/processed_e   # expert (pod B)
+sha256sum data/processed_v2/*.jsonl data/processed_e/*.jsonl   # train/test: dbd80d47… / 8c0c6466… ; bda40ac1… / 993bfb45…
+```
+
+## Q2. Train
+
+```bash
+export MODEL_NAME=Qwen/Qwen3-4B-Instruct-2507
+# pod A, human
+MAX_STEPS=2 OUTPUT_DIR=/tmp/smoke python training/train_lora_v2.py
+mkdir -p checkpoints/lfd-lora-qwen3-4b-h
+OUTPUT_DIR=checkpoints/lfd-lora-qwen3-4b-h python training/train_lora_v2.py 2>&1 | tee checkpoints/lfd-lora-qwen3-4b-h/train.log
+# pod B, expert: timing test first, Kasra approves hours/dollars, then the run
+MAX_STEPS=5 DATA_DIR=data/processed_e OUTPUT_DIR=/tmp/smoke_e python training/train_lora_v2.py
+mkdir -p checkpoints/lfd-lora-qwen3-4b-e
+DATA_DIR=data/processed_e OUTPUT_DIR=checkpoints/lfd-lora-qwen3-4b-e python training/train_lora_v2.py 2>&1 | tee checkpoints/lfd-lora-qwen3-4b-e/train.log
+```
+
+## Q3. Archive (D40) and evaluate (pod A, packer branch `claude/e2-qwen3`)
+
+```bash
+hf upload kasramojallal/packi-qwen3-4b-lora-h checkpoints/lfd-lora-qwen3-4b-h . --private
+hf upload kasramojallal/packi-qwen3-4b-lora-e checkpoints/lfd-lora-qwen3-4b-e . --private
+# packer repo: adapters live in models/<alias>/ (git-ignored)
+hf download kasramojallal/packi-qwen3-4b-lora-h --local-dir models/qwen3-4b-h
+hf download kasramojallal/packi-qwen3-4b-lora-e --local-dir models/qwen3-4b-e
+for m in base-qwen3-4b qwen3-4b-h qwen3-4b-e; do
+  python evaluate.py --method $m --all --quiet
+  python evaluate.py --method $m --all --quiet --shuffle-anchors
+done
+python aggregate.py results/
+```
