@@ -303,3 +303,45 @@ for m in base-qwen3-4b qwen3-4b-h qwen3-4b-e; do
 done
 python aggregate.py results/
 ```
+
+## Run log — Qwen3-4B (2026-10-01)
+
+| Item | Value |
+|---|---|
+| Model | `Qwen/Qwen3-4B-Instruct-2507`, snapshot `cdbee75f17c0…`, 4,022,468,096 parameters (Llama 3.2 3B: 3,212,749,824) |
+| Pod B (expert training, D69) | RunPod Secure Cloud US-MO-1, id `8nddwrkcz2ui6e`, name `e2-qwen3-h100`, 1 × H100 80GB HBM3 (79.2 GiB usable), Intel Xeon Platinum 8470, $3.49/h; CPU benchmark 0.50 s / 13 µs (healthy) |
+| Pod A (human training + every evaluation, D69) | id `vazgsmy8cczz3p`, name `e2-qwen3-pro4500`, 1 × RTX PRO 4500 Blackwell (32 GB, 31.4 GiB usable), AMD EPYC 7713, $0.72/h; CPU benchmark 0.79 s / 16 µs (healthy). RTX 5090 and 4090 could not be deployed that day |
+| Versions (`versions.json`, both pods) | Python 3.12.3, torch 2.8.0+cu128, transformers 5.17.0, peft 0.21.0, datasets 5.0.1, accelerate 1.15.0, CUDA 12.8, cuDNN 91002, driver 580.126.09 — the Packi stack, pinned; only GPU and driver differ |
+| LfD commit | `7fff494` (branch `claude/charming-khayyam-0bd7ac`), clean tree for both runs |
+| Data | regenerated on each pod, sha256 identical to the Packi runs: human train/test `dbd80d47…`/`8c0c6466…` (1,156 / 136 chats), expert `bda40ac1…`/`993bfb45…` (44,520 / 4,986 chats) |
+| Token lengths (Qwen tokenizer) | 232–1,422 tokens (median 384); label tokens 16–27 |
+| Trainable params | **33,030,144** of 4,055,498,240 (0.81 %) — Llama: 24,313,856 (0.75 %); same seven target modules |
+| Qwen-H training | 57 steps, 20 min 39 s (1,239 s, ~21 s/step) on pod A; train loss 2.26 (step 1) → 0.056 (step 57); **validation 0.0560 / 0.0489 / 0.0462** (Packi-H: 0.0718 / 0.0566 / 0.0557) |
+| Qwen-E timing test | `MAX_STEPS=5` on pod B: 10.5 s/step, eval over 4,986 chats 183 s → approved as is (D69) |
+| Qwen-E training | 2,088 steps, **6 h 9 min** (22,136 s, 10.6 s/step incl. evals), 17:29–23:39 UTC on pod B; train loss 2.31 (step 1) → 0.0173 (last); **validation 0.0275 / 0.0228 / 0.0223** (Packi-E: 0.0300 / 0.0253 / 0.0243) |
+| Adapters | `hf.co/kasramojallal/packi-qwen3-4b-lora-h` and `…-lora-e` (private, with `train_config.json`, `versions.json`, `trainer_state.json`, `train.log`); Qwen-E adapter sha256 `560d057f6eea8f2e…` verified equal on HF and pod; local copies in `checkpoints/lfd-lora-qwen3-4b-{h,e}/` (git-ignored) |
+| Note | Qwen's starting loss (2.3) is ~4× Llama's (0.6). One visible cause: unadapted Qwen writes JSON with spaces (`{"rotation_index": 2, "anchor_id": "r2_a7"}`, run file `results/base-qwen3-4b/curriculum25/seed0.json`) while the labels are compact (`{"rotation_index":0,"anchor_id":"r0_a0"}`). By the end of epoch 1 its validation loss is below Llama's |
+| Evaluation | pod A, packer branch `claude/e2-qwen3`, harness code `41b43f7`; 160 runs committed in packer `1924236` (base + Qwen-H + Packi re-timing) and `b99cffb` (Qwen-E), 17:35 UTC Oct 1 – 00:35 UTC Oct 2; fp16 inference exactly as for Llama (no harness change) — Qwen produced 0 invalid JSON in all 160 runs |
+| Packi re-timing (D69) | the published Packi-H / Packi-E adapters re-run plain on pod A → `llm-robotic-packer/retime/rtxpro4500/` (outside `results/`); 19/20 runs each reproduce the original placements; one near-tie each (see D69) |
+| Cost | pod B ≈ 6.7 h × $3.49 ≈ $23.4; pod A ≈ 7.1 h × $0.72 ≈ $5.2; **≈ $28.6** (estimate from pod hours; RunPod balance $51.68 at 18:00 UTC → $18.73 at 00:38 UTC, shared with E3) |
+
+### Results — Qwen3-4B vs Llama 3.2 3B (utilization, mean ± std over seeds 0–4; `python aggregate.py results/` in the packer repo)
+
+| method | teacher | curriculum25 | data1 | data2 | data3 | mean |
+|---|---|---|---|---|---|---|
+| base-llama (no adapter) | — | 0.360 | 0.256 | 0.243 | 0.290 | 0.287 |
+| base-qwen3-4b (no adapter) | — | 0.654 ± 0.068 | 0.614 ± 0.067 | 0.659 ± 0.054 | 0.627 ± 0.070 | 0.638 |
+| Packi-H (Llama) | 646 human | 0.731 ± 0.067 | 0.650 ± 0.071 | 0.757 ± 0.042 | 0.686 ± 0.080 | 0.706 |
+| **Qwen-H** | 646 human | **0.720 ± 0.060** | **0.698 ± 0.054** | **0.751 ± 0.058** | **0.701 ± 0.083** | **0.717** |
+| Packi-E (Llama) | 24,753 expert | 0.789 ± 0.092 | 0.709 ± 0.049 | 0.791 ± 0.021 | 0.750 ± 0.052 | 0.760 |
+| **Qwen-E** | 24,753 expert | **0.827 ± 0.037** | **0.757 ± 0.068** | **0.795 ± 0.029** | **0.734 ± 0.059** | **0.778** |
+| greedy (no LLM) | — | 0.707 ± 0.037 | 0.727 ± 0.060 | 0.828 ± 0.054 | 0.689 ± 0.017 | 0.738 |
+| oracle (sees the future) | — | 0.846 ± 0.074 | 0.848 ± 0.055 | 0.898 ± 0.023 | 0.793 ± 0.058 | 0.846 |
+
+Shuffled anchor ids (mean over datasets): base-qwen3-4b 0.626, Qwen-H 0.681 (Packi-H 0.687), Qwen-E 0.771 (Packi-E 0.764).
+
+Per seed (wins of the first over the second, out of 5; ties excluded): Qwen-H vs Packi-H 2 / 3 / 2 / 2 (Δ −0.011 / +0.048 / −0.006 / +0.015); Qwen-E vs Packi-E 3 / 3 / 3 / 2 (Δ +0.038 / +0.048 / +0.004 / −0.016); Qwen-E vs greedy 5 / 3 / 1 / 3 (Δ +0.120 / +0.030 / −0.033 / +0.045); Qwen-E vs Qwen-H 5 / 4 / 4 / 3.
+
+Reliability: Qwen-H and Qwen-E 100 % first-attempt validity, 0 invalid JSON, 0 retries, 0 path collisions on all 80 runs. Unadapted Qwen: 92–99 % first-attempt validity, 0 invalid JSON (unadapted Llama: 13–19 %, 58–97 invalid JSON per run).
+
+Latency, same card (RTX PRO 4500), median per box end to end (pick + path call): Packi-H 2.01 s, Packi-E 2.05 s, Qwen-H 2.98 s, Qwen-E 2.97 s, unadapted Qwen 2.25 s. Note: `aggregate.py`'s `lat` column is the mean **per-call** latency (≈ half of the per-box figure); Packi-E's original RTX 5090 runs have a per-box median of 2.00–2.34 s.
