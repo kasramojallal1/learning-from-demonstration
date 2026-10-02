@@ -147,7 +147,11 @@ Make sure you have a **valid read token** from Hugging Face.
 
 This is the training half of **Packi**; the simulation, the hosted-model baselines and the dataset runner live in the companion repo, [llm-robotic-packer](https://github.com/kasramojallal1/llm-robotic-packer).
 
-The **Llama 3.2 3B model fine-tuned here with LoRA/QLoRA (4-bit)** on recorded demonstrations reached **87% bin utilization** and **outperformed 11 proprietary API models** (including GPT-4o, GPT-5-mini and Claude 3.7 Sonnet) while running on a **single 16 GB consumer GPU**.
+This repository records the demonstrations and fine-tunes the policies. Two teachers are used: **human demonstrations** recorded with the interactive recorder (`data/demos/binpack_lfd.jsonl`, 646 placements used) and **privileged-expert demonstrations** from an offline beam search that sees the whole box sequence (`data/demos/expert_beam1000.jsonl.gz`, 24,753 placements). `training/sft_prepare.py` serializes both into exactly the messages the evaluation harness sends (top-8 anchors per orientation, shuffled ids, one chat for the pick and one for the path, split by episode); `training/train_lora_v2.py` trains LoRA adapters (r 16, α 32, all attention and MLP projections, bf16, no quantization, 3 epochs, seed 42) on Llama 3.2 3B-Instruct or Qwen3-4B-Instruct-2507. `training/RUNPOD.md` is the full run log (hardware, versions, timings, costs).
+
+Results (utilization, mean over four benchmarks × five fixed sequences, evaluated in the companion repo): **Packi-Qwen-E 0.778**, Packi-Llama-E 0.760, greedy heuristic 0.738, best hosted LLMs 0.730, GOPT 0.709, Packi-Llama-H 0.706. Full tables are in the companion repo and the paper.
+
+> An earlier version of this README stated 87 % utilization from a 4-bit model trained on fewer demonstrations. That number came from an easier online sampler and an older protocol and is superseded.
 
 Paper: *Packi: Robotic 3D Bin Packing with LLMs Fine-tuned by Learning from Demonstration* (under review).
 
