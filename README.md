@@ -1,5 +1,7 @@
 # 📦 Learning from Demonstration: 3D Bin Packing with LLM Guidance
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23381383.svg)](https://doi.org/10.5281/zenodo.23381383)
+
 This project implements a **3D bin packing simulation** powered by **Learning from Demonstrations (LfD)** and **LLM guidance**.  
 It allows you to **record demonstrations**, **process them into training-ready datasets**, and **fine-tune a model** using **LoRA / QLoRA** for efficient training on limited hardware.
 
@@ -178,3 +180,9 @@ Paper: *Packi: Robotic 3D Bin Packing with LLMs Fine-tuned by Learning from Demo
 </p>
 
 
+
+---
+
+## Citation and archive
+
+Archived release v1.0.0 (the version used for the revised paper): https://doi.org/10.5281/zenodo.23381383. Companion repository `llm-robotic-packer`: https://doi.org/10.5281/zenodo.23381381. Trained models: https://huggingface.co/kasramojallal. Licence: MIT (see `LICENSE`); the GOPT weights and the Llama-based adapters keep their own licences (see their Hugging Face pages).
