@@ -1,0 +1,19 @@
+{
+  "title": "Packi: demonstrations and LoRA fine-tuning for online 3D bin packing with LLMs",
+  "description": "Demonstration data and training code for the paper 'Packi: Robotic 3D Bin Packing With Large Language Models Fine-Tuned by Learning From Demonstration' (Journal of Robotics, under revision): the interactive demonstration recorder, human and privileged-expert demonstrations, the data preparation and LoRA training scripts, and the training run log. Trained models: https://huggingface.co/kasramojallal. Companion repository (evaluation): https://github.com/kasramojallal1/llm-robotic-packer.",
+  "creators": [
+    {
+      "name": "Mojallal, Kasra",
+      "affiliation": "Department of Mechanical, Automotive and Materials Engineering, University of Windsor"
+    }
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "keywords": [
+    "online 3D bin packing",
+    "large language models",
+    "learning from demonstration",
+    "LoRA",
+    "robotic packing"
+  ]
+}
